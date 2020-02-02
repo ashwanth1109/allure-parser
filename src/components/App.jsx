@@ -1,67 +1,101 @@
-import React from "react";
-import categories from "../data/categories43";
+import React, { useState, useCallback, useRef } from 'react';
+import * as R from 'ramda';
+import ReactJSON from 'react-json-view';
+import categories from '../data/categories43';
 
+const pages = {
+  HOME: 'HOME',
+  REPORT: 'REPORT',
+  CAUSES: 'CAUSES'
+};
 
 export default () => {
-  console.log(categories);
+  const inputRef = useRef(null);
+  const textAreaRef = useRef(null);
+  const [page, setPage] = useState(pages.HOME);
+  const [failingTests, setFailingTests] = useState({});
+  const [rootCauses, setRootCauses] = useState({});
+
+  const showReport = useCallback(() => {
+    const tests = {};
+    // TODO: Figure out how to parse the file to generate report
     const prodDefects = categories.children[0].children;
+    console.log(prodDefects);
+    prodDefects.map(test => {
+      tests[test.name] = test.children.reduce((acc, val) => {
+        return [...acc, val.name];
+      }, []);
+    });
+    setFailingTests(tests);
+    setPage(pages.REPORT);
+  }, []);
 
-  const rootCauses = {
-      'By(xpath, //div[contains(text(),"View Active Case")]|//h2[contains(text(),"View Active Case")])': [],
-      'By(xpath, //div[contains(text(),"View Resolved Case")]|//h2[contains(text(),"View Resolved Case")])': [],
-      'By(xpath, //div[contains(text(),"View Closed Case")]|//h2[contains(text(),"View Closed Case")])': [],
-      'By(xpath, //df-modal//button[normalize-space(.)="OK"]': [],
-      'by.cssContainingText("div", "Edit "")': [],
-      'By(xpath, //div[contains(text(),"Edit")]|//h2[contains(text(),"Edit")])': [],
-      "No element found using locator: By(xpath, //tr[td[contains(., 'Custom Wiki template')]]//i[@title='Edit'])": [],
-      'No element found using locator: By(xpath, //div[normalize-space(text())="Inbox"]': [],
-      'No element found using locator: By(xpath, //div[contains(@class,"df-modal__content")]//img[@alt="undefined.png"])': [],
-      "javascript error: Cannot read property 'indexOf' of null": [],
-      'By(css selector, div.df-loader)Element should not be visible': [],
-      'By(xpath, //tr[td[contains(.,': [],
-      'By(xpath, //app-dynamic-html[contains(normalize-space(.)': [],
-  };
+  const showCauses = useCallback(() => {
+    // TODO: Sort this object
+    // R.map(rootCauses)
+    setPage(pages.CAUSES);
+  }, [rootCauses]);
 
-  const removeIds = [];
+  const addRootCause = useCallback(() => {
+    const { value: cause } = inputRef.current;
+    rootCauses[cause] = [];
+    const newFailingTests = {};
+    Object.keys(failingTests).map(key => {
+      const tests = failingTests[key];
+      if (key.includes(cause)) {
+        rootCauses[cause] = rootCauses[cause] = [
+          ...rootCauses[cause],
+          ...tests
+        ];
+      } else {
+        newFailingTests[key] = tests;
+      }
+    });
+    setFailingTests(newFailingTests);
+    inputRef.current.value = '';
+  }, [failingTests]);
 
-  const rootCausesClone = JSON.parse(JSON.stringify(rootCauses));
-
-    for (const [id, item] of prodDefects.entries()) {
-        for (const cause in rootCauses) {
-            if (item.name.includes(cause)) {
-                rootCauses[cause].push(...item.children);
-                removeIds.push(id);
-                rootCausesClone[cause].push(item.name);
-            }
-        }
-    }
-
-    removeIds.sort((a,b) => b - a);
-
-    for (const id of removeIds) {
-        prodDefects.splice(id,1);
-    }
-
-    console.log('rootCauses', rootCauses);
-
-    console.log('prodDefects', prodDefects);
-
+  if (page === pages.HOME)
     return (
-        <ul>
-            {Object.keys(rootCauses).map((key,id) => {
-                return (
-                    <li key={id}>
-                        <h3>{key} - {rootCauses[key].length} failed</h3>
-                    <ul>
-                        {rootCauses[key].map((test) => {
-                            return (
-                                <li key={test.uid}>{test.name} ({test.status})</li>
-                            )
-                        })}
-                    </ul>
-                    </li>
-                )
-            })}
-        </ul>
-    )
+      <div className="col container">
+        <div className="app-header">
+          <h2>Paste the categories.json file below</h2>
+          <button onClick={showReport}>Generate Report</button>
+        </div>
+        <textarea
+          placeholder="Enter your file contents here"
+          data-gramm_editor="false"
+          ref={textAreaRef}
+        />
+      </div>
+    );
+
+  if (page === pages.REPORT)
+    return (
+      <div className="col container">
+        <div className="app-header">
+          <input type="text" placeholder="Create a root cause" ref={inputRef} />
+          <button onClick={addRootCause}>Add</button>
+          <button onClick={showCauses}>View</button>
+        </div>
+        <div className="monokai-bg">
+          <ReactJSON src={failingTests} theme="monokai" collapsed={1} />
+        </div>
+      </div>
+    );
+
+  if (page === pages.CAUSES)
+    return (
+      <div className="col container m-top-32">
+        <div className="app-header">
+          <button onClick={() => setPage(pages.REPORT)}>Go Back</button>
+          <h2>Root Causes</h2>
+        </div>
+        <div className="monokai-bg">
+          <ReactJSON src={rootCauses} theme="monokai" collapsed={1} />
+        </div>
+      </div>
+    );
+
+  return <div>Page Not Found</div>;
 };
