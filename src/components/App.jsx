@@ -10,12 +10,15 @@ const pages = {
 
 export default () => {
   const fileRef = useRef(null);
+  const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [page, setPage] = useState(pages.HOME);
   const [failingTests, setFailingTests] = useState({});
-  // const [rootCauses, setRootCauses] = useState({});
+  const [rootCauses, setRootCauses] = useState({});
+  const [totalCases, setTotalCases] = useState(0);
 
   const showReport = useCallback(() => {
+    let total = 0;
     const tests = {};
     // TODO: Figure out how to parse the file to generate report
     const prodDefects = file.children[0].children;
@@ -38,29 +41,31 @@ export default () => {
     const sortedTests = {};
     R.map(val => {
       sortedTests[val[0]] = val[1];
+      total += val[1].length;
     }, sortedArr);
+    setTotalCases(total);
     setFailingTests(sortedTests);
     setPage(pages.REPORT);
   }, [file]);
 
-  // const addRootCause = useCallback(() => {
-  //   const { value: cause } = inputRef.current;
-  //   rootCauses[cause] = [];
-  //   const newFailingTests = {};
-  //   Object.keys(failingTests).map(key => {
-  //     const tests = failingTests[key];
-  //     if (key.includes(cause)) {
-  //       rootCauses[cause] = rootCauses[cause] = [
-  //         ...rootCauses[cause],
-  //         ...tests
-  //       ];
-  //     } else {
-  //       newFailingTests[key] = tests;
-  //     }
-  //   });
-  //   setFailingTests(newFailingTests);
-  //   inputRef.current.value = '';
-  // }, [failingTests]);
+  const addRootCause = useCallback(() => {
+    const { value: cause } = inputRef.current;
+    rootCauses[cause] = [];
+    const newFailingTests = {};
+    Object.keys(failingTests).map(key => {
+      const tests = failingTests[key];
+      if (key.includes(cause)) {
+        rootCauses[cause] = rootCauses[cause] = [
+          ...rootCauses[cause],
+          ...tests
+        ];
+      } else {
+        newFailingTests[key] = tests;
+      }
+    });
+    setFailingTests(newFailingTests);
+    inputRef.current.value = '';
+  }, [failingTests]);
 
   const getFile = useCallback(e => {
     e.preventDefault();
@@ -91,13 +96,16 @@ export default () => {
 
   if (page === pages.REPORT)
     return (
-      <div className="col container">
-        {/*<div className="app-header">*/}
-        {/*  <input type="text" placeholder="Create a root cause" ref={inputRef} />*/}
-        {/*  <button onClick={addRootCause}>Add</button>*/}
-        {/*</div>*/}
-        <div className="monokai-bg">
-          <ReactJSON src={failingTests} theme="monokai" collapsed={1} />
+      <div className="monokai-bg">
+        <div className="col container">
+          <div className="app-header">
+            <h3 className="white-text">Total Number of Cases: {totalCases}</h3>
+            {/*<input type="text" placeholder="Create a root cause" ref={inputRef} />*/}
+            {/*<button onClick={addRootCause}>Add</button>*/}
+          </div>
+          <div className="jsonDisplay">
+            <ReactJSON src={failingTests} theme="monokai" collapsed={1} />
+          </div>
         </div>
       </div>
     );
